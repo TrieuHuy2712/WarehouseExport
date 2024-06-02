@@ -1,0 +1,21 @@
+# Website
+website_url: https://giangs.vn/admin
+website_login: `input_login_name`
+website_password: `input_passowrd`
+
+# Sapo
+sapo_url: https://accounts.sapo.vn/sso/access-to-store
+sapo_phone:
+sapo_password:
+sapo_quoc_co_shop:
+sapo_giang_shop:
+
+# Misa
+misa_url: https://actapp.misa.vn/app
+misa_login:
+misa_password:
+discount_item_sku:
+warehouse_id: "001"
+
+header_current_db_name : KETOAN_NOI_BO_2024
+environment: Testing-

@@ -1,17 +1,18 @@
 import json
 import logging
+import logging.handlers
 import os
 import time
 from datetime import datetime
 from functools import lru_cache
-import logging.handlers
+
 import pandas
 import pytz
 import yaml
 from selenium.common import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.wait import WebDriverWait
 
 from src.AppConfig import AppConfig
 from src.InputProduct import InputProduct
@@ -56,7 +57,7 @@ def get_value_of_config(config: str) -> str:
         return get_user_env(config)
     except KeyError:
         try:
-            with open('conf.yml', 'r') as f:
+            with open('conf.yml', 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 return data[config]
         except Exception as e:
@@ -170,4 +171,13 @@ def parse_time_to_GMT(date: str):
         return utc_time_format.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     except Exception as e:
         return None
+
+def parse_time_format_of_web(date: str):
+    try:
+        default_format = datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+        return default_format.strftime("%m/%d/%Y")
+    except Exception as e:
+        return None
+
+
 

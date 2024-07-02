@@ -1,3 +1,6 @@
+# Website API
+api_url: https://giangs.vn
+
 # Website
 website_url: https://giangs.vn/admin
 website_login: `input_login_name`

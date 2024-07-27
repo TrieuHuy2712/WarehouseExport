@@ -20,9 +20,9 @@ class AutomationMisaOrder:
         self.orders = orders
         self.logging = set_up_logger("Warehouse_Export")
         self.driver = AppConfig().chrome_driver
-        self.missing_orders = []
         self.handle_orders = []
         self.channel = channel
+        self.attempt = 1
 
     def send_orders_to_misa(self):
         try:
@@ -30,23 +30,37 @@ class AutomationMisaOrder:
             self.authentication()
             self.driver.maximize_window()
             self.go_to_internal_accounting_data_page()
-            for order in self.orders:
-                try:
-                    self.go_to_warehouse_page()
-                    self.create_detail_warehouse_invoice(order)
-                    self.handle_orders.append(order.code)  # Add infor handled orders
-                except OrderError as ex:
-                    self.logging.critical(msg=f"[Misa]Automation Misa Order {order.code} got error at : {ex}")
-                    self.missing_orders.append(order.code)  # Add infor error orders
-                    self.open_website()
+            self.handler_create_list_invoice(self.orders)
+            self.logging.info(
+                msg=f"[Misa-{self.channel.name}] Missing orders in running: {','.join({o.code for o in self.get_list_missing_orders()})}")
+            self.logging.info(
+                msg=f"[Misa-{self.channel.name}] Retry for missing orders")
+
+            while len(self.get_list_missing_orders()) > 0 and self.attempt <= 10:
+                missing_orders = self.get_list_missing_orders()
+                self.logging.info(
+                    msg=f"[Misa-{self.channel.name}] Retry create missing order at {self.attempt}")
+                self.handler_create_list_invoice(missing_orders) # Retry missing orders
+                self.attempt = self.attempt + 1
         except Exception as e:
-            self.logging.critical(msg=f"[Misa]Automation Misa Order got error at : {e}")
+            self.logging.critical(msg=f"[Misa-{self.channel.name}] Automation Misa Order got error at : {e}")
         finally:
             self.logging.info(
-                msg=f"[Misa] Missing orders in running: {','.join(order for order in self.missing_orders)}")
-            self.logging.info(
-                msg=f"[Misa] Not handle orders: {','.join(o.code for o in self.orders if o.code not in self.handle_orders)}")
+                msg=f"[Misa-{self.channel.name}] Not handle orders: {','.join({o.code for o in self.get_list_missing_orders()})}")
             AppConfig().destroy_instance()
+
+    def handler_create_list_invoice(self, orders: list[Order]):
+        for order in orders:
+            try:
+                self.go_to_warehouse_page()
+                self.create_detail_warehouse_invoice(order)
+                self.handle_orders.append(order.code)  # Add infor handled orders
+            except OrderError as ex:
+                self.logging.critical(msg=f"[Misa-{self.channel.name}] Automation Misa Order {order.code} got error at : {ex.message}")
+                self.open_website()
+
+    def get_list_missing_orders(self) -> list[Order]:
+        return list({o for o in self.orders if o.code not in self.handle_orders})
 
     def create_detail_warehouse_invoice(self, order: Order):
         try:
@@ -135,20 +149,21 @@ class AutomationMisaOrder:
         col.send_keys(sku)
         col.send_keys(Keys.TAB)
 
+        # Warehouse
+        warehouse_xpath = f'//table[@class="ms-table"]/tbody/tr[{current_row}]/td[5]/div'
+        self.__action_click_with_xpath__(warehouse_xpath)
+        self.__action_click_with_xpath__(f'{warehouse_xpath}//input')
+        col = self.driver.find_element(By.XPATH, f'{warehouse_xpath}//input')
+        col.send_keys(Keys.CONTROL, 'a')
+        col.send_keys(Keys.DELETE)
+        col.send_keys(get_value_of_config("warehouse_id"))
+
         # Quantity
         quantity_xpath = f'//table[@class="ms-table"]/tbody/tr[{current_row}]/td[9]/div'
         self.__action_click_with_xpath__(quantity_xpath)
         attempt_check_can_clickable_by_xpath(f'{quantity_xpath}//input')
         col = self.driver.find_element(By.XPATH, f'{quantity_xpath}//input')
         col.send_keys(quantity)
-        col.send_keys(Keys.TAB)
-
-        # Warehouse
-        warehouse_xpath = f'//table[@class="ms-table"]/tbody/tr[{current_row}]/td[5]/div'
-        self.__action_click_with_xpath__(warehouse_xpath)
-        attempt_check_can_clickable_by_xpath(f'{warehouse_xpath}//input')
-        col = self.driver.find_element(By.XPATH, f'{warehouse_xpath}//input')
-        col.send_keys(get_value_of_config("warehouse_id"))
         col.send_keys(Keys.TAB)
 
         # Check SKU is valid

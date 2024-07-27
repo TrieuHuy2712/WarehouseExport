@@ -3,7 +3,7 @@ import logging
 import logging.handlers
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 
 import pandas
@@ -33,8 +33,7 @@ def set_up_logger(logger_id):
     if logger.hasHandlers():
         logger.handlers.clear()
 
-    exp_handler = logging.handlers.RotatingFileHandler(
-        logger_id + '.log', maxBytes=3000000, backupCount=5)
+    exp_handler = logging.handlers.RotatingFileHandler(f'{logger_id}-{datetime.now().strftime("%Y-%m-%d")}.log', maxBytes=3000000, backupCount=5)
     logger.addHandler(exp_handler)
 
     fmr = logging.Formatter(
@@ -73,6 +72,7 @@ def get_user_env(name) -> str:
         raise KeyError(name)
     return val
 
+
 def attempt_check_exist_by_xpath(xpath, max_attempt=5):
     attempt = 0
     while attempt < max_attempt:
@@ -82,6 +82,7 @@ def attempt_check_exist_by_xpath(xpath, max_attempt=5):
             time.sleep(2)
             return
     raise NoSuchElementException(msg=f"Cannot find element at XPath {xpath}")
+
 
 def attempt_check_can_clickable_by_xpath(xpath, max_attempt=5):
     attempt = 0
@@ -93,6 +94,7 @@ def attempt_check_can_clickable_by_xpath(xpath, max_attempt=5):
             return
     raise NoSuchElementException(msg=f"Cannot clickable element at XPath {xpath}")
 
+
 def check_element_exist(element, type: By = By.XPATH, timeout=10):
     try:
         element_present = EC.presence_of_element_located((type, element))
@@ -100,6 +102,7 @@ def check_element_exist(element, type: By = By.XPATH, timeout=10):
         return True
     except TimeoutException:
         return False
+
 
 def check_element_can_clickable(element, type: By = By.XPATH, timeout=10):
     try:
@@ -165,6 +168,7 @@ def parse_time_to_vietnam_zone(date: str):
     local_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     return utc_time_format.replace(tzinfo=pytz.utc).astimezone(local_tz).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+
 def parse_time_to_GMT(date: str):
     try:
         utc_time_format = datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
@@ -172,7 +176,8 @@ def parse_time_to_GMT(date: str):
     except Exception as e:
         return None
 
-def parse_time_format_of_web(date: str):
+
+def convert_time_format_of_web(date: str):
     try:
         default_format = datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
         return default_format.strftime("%m/%d/%Y")
@@ -180,4 +185,16 @@ def parse_time_format_of_web(date: str):
         return None
 
 
+def parse_to_time_format_of_web(date: str):
+    try:
+        return datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+    except Exception as e:
+        return None
 
+
+def get_base_time_from_date():
+    return datetime.now().replace(hour=17, minute=0, second=0, microsecond=0) + timedelta(days=-1)
+
+
+def get_base_time_to_date():
+    return datetime.now().replace(hour=16, minute=59, second=59, microsecond=0)

@@ -33,6 +33,9 @@ class AutomationSapoOrder(SAPO):
         self.to_search_order = order.orders
         self.payment_methods = []
         self.item_information = get_item_information()
+        self.order_sources = []
+        self.is_complete = order.is_complete_order_status
+        self.is_composite_fulfillment_status = order.is_fulfilled_status
 
     def get_orders_by_date(self) -> List[Order]:
         try:
@@ -44,8 +47,10 @@ class AutomationSapoOrder(SAPO):
             self.go_to_order_page()
             # Get payment method
             self.payment_methods = self.get_payment_methods()
+            self.order_sources = self.get_order_sources()
             is_empty_search = len(self.to_search_order) > 0
             self.filter_orders_date_time(is_available_search_order=is_empty_search)
+            self.logging.info(msg=f"Begin search API at orders {self.domain}")
             for order in self.orders:
                 try:
                     self.get_information_order(order)
@@ -58,6 +63,8 @@ class AutomationSapoOrder(SAPO):
             self.logging.critical(msg=f"[Date]Automation Sapo Order got error at get orders by date: {e}")
         finally:
             AppConfig().destroy_instance()
+            self.logging.info(
+                msg=f"[Date] List API at {self.domain} has been found on from Sapo API : {','.join([order.code for order in self.orders])}")
             return self.orders
 
     def open_website(self):
@@ -167,29 +174,44 @@ class AutomationSapoOrder(SAPO):
             else:
                 list_current_orders = [order.code for order in list_order]
                 self.to_search_order = list(set(self.to_search_order) & set(list_current_orders))
+                self.orders.extend([order for order in list_order if order.code in self.to_search_order])
 
     def get_list_order_from_page(self, page):
+        status = "finalized" if self.is_complete else ""
         string_json = requests.get(f'{self.domain}/admin/orders.json?page={page}'
                                    f'&limit=100'
-                                   f'&status=finalized'
+                                   f'&status={status}'
                                    f'&created_on_max={self.to_date}'
                                    f'&created_on_min={self.from_date}'
                                    f'&return_status=unreturned'
-                                   f'&source_id=7925877,7771008,6677743,6671556,6671548,6671547,6671550,6671549,6671545',
+                                   f'{"&composite_fulfillment_status=fulfilled" if self.is_composite_fulfillment_status else ""}'
+                                   # f'&source_id=7925877,7771008,6677743,6671556,6671548,6671547,6671550,6671549,6671545',
+                                   f'&source_id={self.order_sources}',
                                    cookies=self.get_website_cookie())
         parse_json = json.loads(string_json.text)['orders']
         return [Order.from_dict(order) for order in parse_json]
 
     def get_meta_order_from_page(self):
+        status = "finalized" if self.is_complete else ""
         string_json = requests.get(f'{self.domain}/admin/orders.json?page=1'
                                    f'&limit=100'
-                                   f'&status=finalized'
+                                   f'&status={status}'
                                    f'&created_on_max={self.to_date}'
                                    f'&created_on_min={self.from_date}'
                                    f'&return_status=unreturned'
-                                   f'&source_id=7925877,7771008,6677743,6671556,6671548,6671547,6671550,6671549,6671545',
+                                   f'{"&composite_fulfillment_status=fulfilled" if self.is_composite_fulfillment_status else ""}'
+                                   f'&source_id={self.order_sources}',
                                    cookies=self.get_website_cookie())
         return json.loads(string_json.text)['metadata']
+
+    def get_order_sources(self):
+        string_json = requests.get(f'{self.domain}/admin/order_sources.json?query=&page=1'
+                                   f'&limit=100',
+                                   cookies=self.get_website_cookie())
+        order_sources = json.loads(string_json.text)['order_sources']
+        default_sources = get_value_of_config('order_sources').split(',')
+        id_sources = [str(sources.get("id")) for sources in order_sources if sources.get("name") in default_sources]
+        return ','.join(id_sources)
 
     def handle_windows(self):
         sale_order = '//span[text()="Đơn hàng"]'
@@ -239,7 +261,7 @@ class AutomationSapoOrder(SAPO):
 
     @staticmethod
     def get_domain(shop: SapoShop):
-        if shop == SapoShop.QuocCoQuocNghiepShop:
+        if shop == SapoShop.QuocCoQuocNghiep:
             return f"https://{get_value_of_config('sapo_quoc_co_shop')}"
         elif shop == SapoShop.ThaoDuocGiang:
             return f"https://{get_value_of_config('sapo_giang_shop')}"

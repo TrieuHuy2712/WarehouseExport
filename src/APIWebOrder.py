@@ -1,5 +1,6 @@
 import json
 import math
+from datetime import datetime
 from typing import List
 
 import requests
@@ -9,28 +10,48 @@ from src.IRetrieveOrder import Web
 from src.InputProduct import InputDetailProduct
 from src.Model.Order import Order
 from src.OrderRequest import OrderRequest
-from src.utils import set_up_logger, get_value_of_config, get_item_information, parse_time_format_of_web
+from src.utils import set_up_logger, get_value_of_config, get_item_information, convert_time_format_of_web, parse_to_time_format_of_web
 
 
 class APIWebOrder(Web):
     def __init__(self, order: OrderRequest = None):
         self.logging = set_up_logger("Warehouse_Export")
         self.orders = []
-        self.from_date = parse_time_format_of_web(order.from_date)
-        self.to_date = parse_time_format_of_web(order.to_date)
+        self.from_date = convert_time_format_of_web(order.from_date)
+        self.to_date = convert_time_format_of_web(order.to_date)
         self.to_search_order = order.orders
         self.payment_methods = []
         self.item_information = get_item_information()
         self.products = self.__get_product_information__()
         self.cookies = self.authentication()
         self.meta_page = {}
+        self.on_delivery = order.is_fulfilled_status
+        self.base_from_date = parse_to_time_format_of_web(order.from_date)
+        self.base_to_date = parse_to_time_format_of_web(order.to_date)
 
     def get_orders_by_date(self) -> List[Order]:
         try:
+            self.logging.info(msg=f"Begin search API at Web")
             self.filter_orders_date_time()
+            self.logging.info(msg=f"[Date] List API has been found on from web : {','.join([order.code for order in self.orders])}")
+            if self.on_delivery:
+                return self.filter_time()
             return self.orders
         except Exception as e:
             self.logging.error(msg=f"[Date] API Web Order got error by search: {e}")
+
+    def filter_time(self):
+        filter_orders = []
+        for order in self.orders:
+            format_string = "%H:%M:%S - %d/%m/%Y"
+            try:
+                parsed_date = datetime.strptime(order.created_on, format_string)
+                if self.base_from_date <= parsed_date <= self.base_to_date: # Check base time when run auto
+                    filter_orders.append(order)
+            except ValueError as e:
+                self.logging.error(msg=f"[Date] Cannot parsing create date of order {order.code}")
+        return filter_orders
+
 
     @staticmethod
     def authentication():
@@ -56,10 +77,12 @@ class APIWebOrder(Web):
 
     def _get_list_order_from_page(self, page):
         params = self.prepare_params_list_orders()
+        state_delivery = 'on_delivery' if self.on_delivery else ''
         order_request = requests.get(f"{get_value_of_config('api_url')}/api/v1/orders/all?"
-                                     f"time__contains={params.get('time_request', '')}"
-                                     f"&uid__contains={params.get('order_request', '')}"
-                                     f"&page={page}",
+                                     f"time__icontains={params.get('time_request', '')}"
+                                     f"&uid__icontains={params.get('order_request', '')}"
+                                     f"&page={page}"
+                                     f"&state={state_delivery}",
                                      cookies=self.cookies)
         parse_json = json.loads(order_request.text)["orders"]
 

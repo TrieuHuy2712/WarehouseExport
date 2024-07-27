@@ -144,3 +144,4 @@ conf.yml
 # Spec
 .spec
 *.xlsx
+ITEM_INFORMATION.xlsx

@@ -34,7 +34,7 @@ class AutomationMisaOrder:
             self.logging.info(
                 msg=f"[Misa-{self.channel.name}] Missing orders in running: {','.join({o.code for o in self.get_list_missing_orders()})}")
             self.logging.info(
-                msg=f"[Misa-{self.channel.name}] Retry for missing orders")
+                msg=f"[Misa-{self.channel.name}] Retry for missing orders: {','.join({o.code for o in self.get_list_missing_orders()})}")
 
             while len(self.get_list_missing_orders()) > 0 and self.attempt <= 10:
                 missing_orders = self.get_list_missing_orders()
@@ -60,7 +60,7 @@ class AutomationMisaOrder:
                 self.open_website()
 
     def get_list_missing_orders(self) -> list[Order]:
-        return list({o for o in self.orders if o.code not in self.handle_orders})
+        return [o for o in self.orders if o.code not in self.handle_orders]
 
     def create_detail_warehouse_invoice(self, order: Order):
         try:
@@ -79,11 +79,13 @@ class AutomationMisaOrder:
 
             for i in range(0, len(sku_quantity)):
                 attempt_check_exist_by_xpath(add_line_button_xpath)
-                self.driver.find_element(By.XPATH, add_line_button_xpath).click()
                 time.sleep(2)
 
             current_row = 1
             for sku, quantity in sku_quantity.items():
+                if current_row > 1:
+                    self.driver.find_element(By.XPATH, add_line_button_xpath).click()
+                    time.sleep(2)
                 self.set_warehouse_data_for_table(sku, quantity, current_row)
                 current_row += 1
 

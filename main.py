@@ -99,6 +99,11 @@ if __name__ == '__main__':
             elif sapo_channel == '2':
                 process_orders(order_request, 1) #ThaoDuocGiang
         else:
+            order_type = input('Nhập chọn loại đơn hàng : \n 1.Giao hàng \n 2.Hoàn thành \n ')
+            if order_type == '1':
+                order_request.is_fulfilled_status = True
+            else:
+                order_request.is_fulfilled_status = False
             process_orders(order_request, 3) # Case of web
 
 

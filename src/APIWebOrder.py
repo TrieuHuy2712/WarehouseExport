@@ -94,7 +94,13 @@ class APIWebOrder(Web):
         return [Order.from_dict(order) for order in parse_json]
 
     def prepare_params_list_orders(self):
-        orders = ""
+        if len(self.to_search_order) == 0:
+            orders = ""
+        elif len(self.to_search_order) == 1:
+            orders = self.to_search_order[0]
+        else:
+            orders = f"{':'.join(self.to_search_order)}"
+
         time = f"{self.from_date} / {self.to_date}"
 
         return {"order_request": orders, "time_request": time}

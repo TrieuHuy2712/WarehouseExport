@@ -41,7 +41,7 @@ def get_user_dates():
     return from_date, to_date
 
 def resubmit_data():
-    order_string = input('Nhập danh sách hóa đơn còn thiếu:\nLưu ý: Danh sách aóa đơn theo ví dụ SON001,SON002\n')
+    order_string = input('Nhập danh sách hóa đơn còn thiếu:\nLưu ý: Danh sách hóa đơn theo ví dụ SON001,SON002\n')
     list_order = []
     if ',' in order_string:
         list_order = order_string.split(',')
@@ -90,7 +90,7 @@ if __name__ == '__main__':
         order_request.from_date, order_request.to_date = get_dates_to_resubmit()
 
         # Set default to search all kind of order
-        # order_request.is_complete_order_status = False
+        order_request.is_complete_order_status = False
         order_request.is_fulfilled_status = False
         if order_request.sapo_channel == Channel.SAPO:
             sapo_channel = input('Nhập chọn kênh Sapo: \n 1.QuocCoQuocNghiep \n 2.ThaoDuocGiang\n')

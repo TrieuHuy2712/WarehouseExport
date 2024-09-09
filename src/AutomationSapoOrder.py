@@ -64,7 +64,7 @@ class AutomationSapoOrder(SAPO):
         finally:
             AppConfig().destroy_instance()
             self.logging.info(
-                msg=f"[Date] List API at {self.domain} has been found on from Sapo API : {','.join([order.code for order in self.orders])}")
+                msg=f"[Date] List API at {self.domain} has been found on from Sapo API : {','.join([order.code for order in self.orders if len(self.orders) > 0])}")
             return self.orders
 
     def open_website(self):
@@ -162,19 +162,29 @@ class AutomationSapoOrder(SAPO):
     def filter_orders_date_time(self, is_available_search_order=False):
         limit = 100
 
-        meta_data = self.get_meta_order_from_page()
+        meta_data = self.get_meta_warehouse_order()
         total_page = math.ceil(meta_data.get("total") / limit)
 
         for page in range(1, total_page + 1 if total_page > 1 else 2):
-            list_order = self.get_list_order_from_page(page)
+            list_order = self.get_list_warehouse_order(page)
 
             if not is_available_search_order:
                 self.orders.extend(list_order)
                 self.to_search_order.extend([order.code for order in list_order])
             else:
                 list_current_orders = [order.code for order in list_order]
-                self.to_search_order = list(set(self.to_search_order) & set(list_current_orders))
-                self.orders.extend([order for order in list_order if order.code in self.to_search_order])
+                to_search_orders = list(set(self.to_search_order) & set(list_current_orders))
+                self.orders.extend([order for order in list_order if order.code in to_search_orders])
+
+    def get_meta_warehouse_order(self):
+        if self.is_composite_fulfillment_status:
+            return self.get_meta_fulfillment_from_page()
+        return self.get_meta_order_from_page()
+
+    def get_list_warehouse_order(self, page):
+        if self.is_composite_fulfillment_status:
+            return self.get_list_fulfillment_from_page(page)
+        return self.get_list_order_from_page(page)
 
     def get_list_order_from_page(self, page):
         status = "finalized" if self.is_complete else ""
@@ -203,6 +213,31 @@ class AutomationSapoOrder(SAPO):
                                    f'&source_id={self.order_sources}',
                                    cookies=self.get_website_cookie())
         return json.loads(string_json.text)['metadata']
+
+    def get_meta_fulfillment_from_page(self):
+        string_json = requests.get(f'{self.domain}/admin/fulfillments.json?page=1'
+                                   f'&limit=100'
+                                   f'&packed_on_max={self.to_date}'
+                                   f'&packed_on_min={self.from_date}'
+                                   f'&composite_fulfillment_statuses=fulfilled,packed,retry_delivery,received'
+                                   f'&delivery_types=courier',
+                                   cookies=self.get_website_cookie())
+        return json.loads(string_json.text)['metadata']
+
+    def get_list_fulfillment_from_page(self, page):
+        string_json = requests.get(f'{self.domain}/admin/fulfillments.json?page={page}'
+                                   f'&limit=100'
+                                   f'&packed_on_max={self.to_date}'
+                                   f'&packed_on_min={self.from_date}'
+                                   f'&composite_fulfillment_statuses=fulfilled,packed,retry_delivery,received'
+                                   f'&delivery_types=courier',
+                                   cookies=self.get_website_cookie())
+        parsed_orders = json.loads(string_json.text).get('fulfillments',[])
+        return [
+            Order.from_dict(order['order'])
+            for order in parsed_orders
+            if str(order['order'].get('source_id')) in self.order_sources
+        ]
 
     def get_order_sources(self):
         string_json = requests.get(f'{self.domain}/admin/order_sources.json?query=&page=1'

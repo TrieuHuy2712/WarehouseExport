@@ -109,7 +109,7 @@ class APIWebOrder(Web):
         for order_line in order.order_line_items:
             order_line.is_composite = True
             for composite_item in order_line.composite_item_domains:
-                composite_item.quantity = int(composite_item.original_quantity) * int(order_line.quantity)
+                composite_item.quantity = int(order_line.quantity) if composite_item.sku == order_line.sku else int(composite_item.original_quantity) * int(order_line.quantity)
                 composite_item.unit = self.__get_product_details__(composite_item.sku).Unit
 
     def __get_product_details__(self, sku) -> InputDetailProduct:

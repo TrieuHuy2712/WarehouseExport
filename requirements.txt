@@ -11,3 +11,4 @@ pyqt-checkbox-list-widget
 PyInstaller
 requests
 pywin32
+numpy~=1.22.0

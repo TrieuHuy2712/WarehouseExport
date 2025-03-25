@@ -24,7 +24,7 @@ def _update_product_with_sub_product(product, item, sub_product):
 
 class AutomationSapoOrder(SAPO):
     def __init__(self, shop: SapoShop, order: OrderRequest = None):
-        self.driver = AppConfig().chrome_driver
+        self.driver = AppConfig().get_chrome_driver()
         self.logging = set_up_logger("Warehouse_Export")
         self.domain = self.get_domain(shop)
         self.orders = []
@@ -81,7 +81,7 @@ class AutomationSapoOrder(SAPO):
             xpath = f'// span[text()="{get_value_of_config("sapo_quoc_co_shop")}"]/parent::div'
         elif get_value_of_config('sapo_giang_shop') in self.domain:
             xpath = f'// span[text()="{get_value_of_config("sapo_giang_shop")}"]/parent::div'
-        check_element_can_clickable(xpath, By.XPATH)
+        check_element_can_clickable(xpath, By.XPATH, driver=self.driver)
         self.driver.find_element(By.XPATH, xpath).click()
 
     def get_information_order(self, order):
@@ -250,7 +250,7 @@ class AutomationSapoOrder(SAPO):
 
     def handle_windows(self):
         sale_order = '//span[text()="Đơn hàng"]'
-        check_element_can_clickable(sale_order, By.XPATH)
+        check_element_can_clickable(sale_order, By.XPATH, driver=self.driver)
 
         default_window = self.driver.window_handles[0]
         handle_window = self.driver.window_handles[1]
@@ -260,11 +260,11 @@ class AutomationSapoOrder(SAPO):
 
     def go_to_order_page(self):
         sale_order = '//span[text()="Đơn hàng"]'
-        check_element_can_clickable(sale_order, By.XPATH)
+        check_element_can_clickable(sale_order, By.XPATH, driver=self.driver)
         self.driver.find_element(By.XPATH, sale_order).click()
 
         admin_order = '//a[@href="/admin/orders"]'
-        check_element_can_clickable(admin_order, By.XPATH)
+        check_element_can_clickable(admin_order, By.XPATH, driver=self.driver)
         self.driver.find_element(By.XPATH, admin_order).click()
 
     def input_login_phone(self):
